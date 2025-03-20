@@ -34,6 +34,17 @@ Display both in a side-by-side format with a Gradio UI.
 📸 Architecture Diagram
 ![Building LLM application using RAG - by Sagar Gandhi](https://github.com/user-attachments/assets/ed66e623-e3d4-4d7f-8d90-971f29771dfe)
 
+🧠 Models Used
+🔹 1. Sentence Transformer – Semantic Search
+Model: sentence-transformers/all-MiniLM-L6-v2
+Purpose: Encodes user query and dataset passages into vectors for semantic similarity search.
+Enables relevant data retrieval from historical dataset (RAG retrieval step).
+🔹 2. Google Flan-T5 Base – Text Generation
+Model: google/flan-t5-base
+Purpose: Generates human-readable answers based on the retrieved 2009 data.
+Lightweight, fast, and trained for natural language understanding and generation.
+
+
 
 ✨ Interactive Modules
 Weather-RAG offers two powerful interfaces for exploring and comparing weather data.
