@@ -1,0 +1,67 @@
+📦 Requirements & Their Purpose
+1. transformers
+What is it?
+A library from Hugging Face that provides access to pre-trained transformer models like BERT, GPT, etc.
+
+Why is it used?
+You use it to load and fine-tune a BERT model for sentiment analysis, tokenize input text, and apply a classification head for sentiment prediction.
+
+Model Used:
+bert-base-uncased or any other fine-tuned BERT model for sentiment classification.
+
+2. torch (or tensorflow, depending on your backend)
+What is it?
+A deep learning framework for building and training neural networks.
+
+Why is it used?
+Used for model training, forward pass, loss calculation, and backpropagation during fine-tuning of BERT for sentiment classification.
+
+3. pandas
+What is it?
+A data manipulation library in Python.
+
+Why is it used?
+Used for loading, preprocessing, and handling datasets (e.g., CSV, Parquet files with tweets or reviews).
+
+4. numpy
+What is it?
+A fundamental library for numerical operations.
+
+Why is it used?
+Used for vector operations, matrix manipulation, and efficient numerical computations during training and evaluation.
+
+5. scikit-learn
+What is it?
+A Python library for machine learning utilities and evaluation metrics.
+
+Why is it used?
+Used for calculating accuracy, F1 score, precision, recall, confusion matrix, and for splitting the dataset into train/test.
+
+6. matplotlib / seaborn (Optional)
+What is it?
+Libraries for data visualization.
+
+Why is it used?
+Used for plotting training loss curves, confusion matrices, and visualizing dataset distribution.
+
+
+✅ Requirements Summary
+pandas			Data loading and manipulation (Jena dataset)
+faiss-cpu		Fast similarity search for semantic retrieval
+numpy			Vector and matrix operations
+gradio			Interactive UI interface
+tqdm			Progress bars for embedding generation
+sentence-transformers	Semantic encoding (MiniLM-L6-v2 for embeddings)
+transformers		Text generation using Flan-T5
+requests		Fetch real-time weather from OpenWeatherMap API
+datetime		Handle current time/date for comparison
+
+
+Requiremnts
+transformers
+torch
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
