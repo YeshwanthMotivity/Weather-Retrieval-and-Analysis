@@ -1,4 +1,4 @@
-# Weather-Retrieval-and-Analysis
+# 🌦️ Weather-RAG: Weather Retrieval and Real-Time Comparison Using RAG & Flan-T5
 🌦️ Weather-RAG: Weather Retrieval and Analysis using RAG
 Weather-RAG is a machine learning project that enables semantic search and analysis of weather data using Retrieval-Augmented Generation (RAG) techniques. It combines sentence-transformer embeddings with FAISS indexing for natural language queries over weather data, and now includes a powerful real-time weather comparison feature using the OpenWeatherMap API.
 
