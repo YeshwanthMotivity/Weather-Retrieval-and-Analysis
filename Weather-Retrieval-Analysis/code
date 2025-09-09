@@ -37,8 +37,6 @@ csv_path = 'CSVFILE'  # change extension if it's CSV
 df = pd.read_csv(csv_path)
 
 Convert Rows to Text
-
-
 # Convert rows into text chunks (for embedding)
 def row_to_text(row):
     return f"DateTime: {row['Date Time']}, Temperature: {row['T (degC)']}°C, Humidity: {row['rh (%)']}%, Wind Speed: {row['wv (m/s)']} m/s"
