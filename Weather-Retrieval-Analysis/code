@@ -145,14 +145,14 @@ from datetime import datetime
 import gradio as gr
 
 # Load entire dataset (no row limit)
-df = pd.read_csv('/content/drive/MyDrive/Colab Notebooks/Projects(AI ML)/jena_climate_2009_2016.csv')
+df = pd.read_csv('Your Csv File')
 df['Date Time'] = pd.to_datetime(df['Date Time'], format='%d.%m.%Y %H:%M:%S')
 
 # Filter only data from 2009
 df_2009 = df[df['Date Time'].dt.year == 2009]
 
 # OpenWeather API Key
-API_KEY = "e2438cd8b6f47cceb53993ecf3731624"
+API_KEY = "Your Api Key"
 
 # Fetch real-time weather
 def get_current_weather(location):
@@ -236,14 +236,14 @@ from datetime import datetime
 import gradio as gr
 
 # Load dataset
-df = pd.read_csv('/content/drive/MyDrive/Colab Notebooks/Projects(AI ML)/jena_climate_2009_2016.csv')
+df = pd.read_csv('Your Csv File')
 df['Date Time'] = pd.to_datetime(df['Date Time'], format='%d.%m.%Y %H:%M:%S')
 
 # Filter data for 2009
 df_2009 = df[df['Date Time'].dt.year == 2009]
 
 # OpenWeatherMap API Key
-API_KEY = "e2438cd8b6f47cceb53993ecf3731624"
+API_KEY = "Your Api Key"
 
 # Get real-time weather
 def get_current_weather(location):
