@@ -1,0 +1,318 @@
+Predict Weather using RAG
+
+PART 1 – Setup, Load Dataset, Preprocess, Disable Telemetry, No API Key
+# Install Hugging Face and FAISS
+!pip install faiss-cpu gradio transformers sentence-transformers --quiet
+
+Disable Telemetry (No API Prompts)
+import os
+# Disable telemetry
+os.environ["WANDB_DISABLED"] = "true"
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+
+Imports and Dataset Load
+import pandas as pd
+import faiss
+import numpy as np
+import gradio as gr
+from tqdm import tqdm
+from sentence_transformers import SentenceTransformer
+from transformers import pipeline
+
+Load Dataset
+import pandas as pd
+
+# Load the Excel file
+excel_path = 'excel path'
+df = pd.read_excel(excel_path)
+
+# View sample rows
+df.head()
+
+
+if dataset is CSV 
+import pandas as pd
+
+csv_path = 'CSVFILE'  # change extension if it's CSV
+df = pd.read_csv(csv_path)
+
+Convert Rows to Text
+
+
+# Convert rows into text chunks (for embedding)
+def row_to_text(row):
+    return f"DateTime: {row['Date Time']}, Temperature: {row['T (degC)']}°C, Humidity: {row['rh (%)']}%, Wind Speed: {row['wv (m/s)']} m/s"
+
+# Apply to a subset for speed (e.g., 10,000 rows)
+texts = df.head(10000).apply(row_to_text, axis=1).tolist()
+
+# Preview one
+print(texts[0])
+
+PART 2 – Embeddings + FAISS Setup
+Load SentenceTransformer Model for Embeddings
+We’ll use a lightweight yet effective embedding model.
+"all-MiniLM-L6-v2".
+
+# Load embedding model (efficient & suitable for Colab)
+embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+
+Generate Embeddings for Text Chunks
+# Generate embeddings (batch processing for speed)
+embeddings = embedder.encode(texts, show_progress_bar=True, convert_to_numpy=True)
+
+# Shape of embeddings
+print(f"Embeddings shape: {embeddings.shape}")
+
+# Create FAISS index
+embedding_dim = embeddings.shape[1]
+index = faiss.IndexFlatL2(embedding_dim)
+
+# Add embeddings to the index
+index.add(embeddings)
+
+# Save the mapping between embeddings and original text
+text_mapping = {i: text for i, text in enumerate(texts)}
+
+# Confirm size
+print(f"Number of vectors in FAISS index: {index.ntotal}")
+
+Retrieval Function
+This function will:
+Convert the user query into an embedding.
+Search FAISS for top-k similar weather data.
+
+Return retrieved text chunks.
+def retrieve_similar_chunks(query, k=5):
+    # Embed the query
+    query_embedding = embedder.encode([query], convert_to_numpy=True)
+
+    # Search FAISS
+    distances, indices = index.search(query_embedding, k)
+
+    # Retrieve corresponding text
+    results = [text_mapping[idx] for idx in indices[0]]
+
+    return results
+
+PART 3 – Local LLM Response Generation
+*   Concatenate the retrieved chunks.
+*   Use a local LLM to answer your weather query.
+*   Return the LLM-generated respons
+ Lad the LLM
+ google/flan-t5-base
+
+# Load text generation pipeline (small model for speed)
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
+llm_name = "google/flan-t5-base"
+tokenizer = AutoTokenizer.from_pretrained(llm_name)
+model = AutoModelForSeq2SeqLM.from_pretrained(llm_name)
+
+# Define text generation function
+def generate_answer(prompt, max_tokens=200):
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True)
+    outputs = model.generate(**inputs, max_length=max_tokens)
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+
+Combine Retrieval + Generation
+We will:
+Retrieve relevant weather chunks.
+Construct a prompt.
+Generate the answer using Flan-T5.
+
+def answer_query(query):
+    # Step 1: Retrieve
+    retrieved_chunks = retrieve_similar_chunks(query)
+
+    # Step 2: Combine chunks
+    context = "\n".join(retrieved_chunks)
+
+    # Step 3: Construct prompt
+    prompt = f"""Given the following weather data:\n{context}\nAnswer the question: {query}"""
+
+    # Step 4: Generate response
+    answer = generate_answer(prompt)
+
+    return answer
+
+PART 4 – Gradio Web Interface + Graph
+1.   Create a Gradio app for text input + LLM output.
+2.   Optionally plot weather data (matching the query) using matplotlib.
+!pip install requests --quiet
+import pandas as pd
+import requests
+from datetime import datetime
+import gradio as gr
+
+# Load entire dataset (no row limit)
+df = pd.read_csv('/content/drive/MyDrive/Colab Notebooks/Projects(AI ML)/jena_climate_2009_2016.csv')
+df['Date Time'] = pd.to_datetime(df['Date Time'], format='%d.%m.%Y %H:%M:%S')
+
+# Filter only data from 2009
+df_2009 = df[df['Date Time'].dt.year == 2009]
+
+# OpenWeather API Key
+API_KEY = "e2438cd8b6f47cceb53993ecf3731624"
+
+# Fetch real-time weather
+def get_current_weather(location):
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={location}&appid={API_KEY}&units=metric"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+        return {
+            "temp": data['main']['temp'],
+            "humidity": data['main']['humidity'],
+            "wind_speed": data['wind']['speed'],
+            "description": data['weather'][0]['description'].capitalize()
+        }
+    else:
+        return None
+
+# Get 2009 temperature for today's date (e.g., 20-03-2009)
+def get_2009_temp_for_today(df_2009):
+    today = datetime.now()
+    target_date_2009 = datetime(2009, today.month, today.day)
+
+    filtered = df_2009[df_2009['Date Time'].dt.date == target_date_2009.date()]
+
+    if not filtered.empty:
+        temp_2009 = round(filtered.iloc[0]['T (degC)'], 2)
+        date_2009 = filtered.iloc[0]['Date Time'].strftime('%d.%m.%Y %H:%M:%S')
+        return temp_2009, date_2009
+    else:
+        return None, None
+
+# Gradio interface function
+def compare_weather(query, location):
+    temp_2009, date_2009 = get_2009_temp_for_today(df_2009)
+    current_weather = get_current_weather(location)
+
+    if temp_2009 is None or current_weather is None:
+        return "Error retrieving data.", "Check dataset or API", None
+
+    comparison = f"📅 2009 Date: {date_2009} | 🌡️ Temp: {temp_2009}°C\n"
+    comparison += f"📍 Current Temp in {location}: {current_weather['temp']}°C\n"
+
+    diff = round(current_weather['temp'] - temp_2009, 2)
+    if diff > 0:
+        comparison += f"Today is {diff}°C warmer than the same day in 2009."
+    elif diff < 0:
+        comparison += f"Today is {abs(diff)}°C colder than the same day in 2009."
+    else:
+        comparison += "Today’s temperature is the same as in 2009!"
+
+    real_time_info = (
+        f"Location: {location}, Temperature: {current_weather['temp']}°C, "
+        f"Humidity: {current_weather['humidity']}%, Wind Speed: {current_weather['wind_speed']} m/s, "
+        f"Weather: {current_weather['description']}"
+    )
+
+    return comparison, real_time_info, None
+
+# Gradio UI
+gr.Interface(
+    fn=compare_weather,
+    inputs=[
+        gr.Textbox(label="Enter Your Weather Question"),
+        gr.Textbox(label="Enter City for Real-Time Weather")
+    ],
+    outputs=[
+        gr.Textbox(label="Comparison (2009 vs Today)"),
+        gr.Textbox(label="Real-Time Weather Data"),
+        gr.Image(type="pil", label="Weather Plot (Optional)")
+    ],
+    title="Weather Comparison: 2009 vs Today",
+    description="Compare today’s temperature with the same day in 2009 (Jena Climate Dataset)."
+).launch()
+
+"Real-Time Weather vs Historical Climate: Temperature Comparison Using Jena Climate Dataset"
+!pip install requests gradio --quiet
+
+import pandas as pd
+import requests
+from datetime import datetime
+import gradio as gr
+
+# Load dataset
+df = pd.read_csv('/content/drive/MyDrive/Colab Notebooks/Projects(AI ML)/jena_climate_2009_2016.csv')
+df['Date Time'] = pd.to_datetime(df['Date Time'], format='%d.%m.%Y %H:%M:%S')
+
+# Filter data for 2009
+df_2009 = df[df['Date Time'].dt.year == 2009]
+
+# OpenWeatherMap API Key
+API_KEY = "e2438cd8b6f47cceb53993ecf3731624"
+
+# Get real-time weather
+def get_current_weather(location):
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={location}&appid={API_KEY}&units=metric"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        return {
+            "temp": data['main']['temp'],
+            "humidity": data['main']['humidity'],
+            "wind_speed": data['wind']['speed'],
+            "description": data['weather'][0]['description'].capitalize()
+        }
+    else:
+        return None
+
+# Get 2009 temperature for today's date
+def get_2009_temp_for_today(df_2009):
+    today = datetime.now()
+    target_date_2009 = datetime(2009, today.month, today.day)
+    filtered = df_2009[df_2009['Date Time'].dt.date == target_date_2009.date()]
+    if not filtered.empty:
+        temp_2009 = round(filtered.iloc[0]['T (degC)'], 2)
+        date_2009 = filtered.iloc[0]['Date Time'].strftime('%d.%m.%Y %H:%M:%S')
+        return temp_2009, date_2009
+    else:
+        return None, None
+
+# Gradio interface function (No plot)
+def compare_weather(query, location):
+    temp_2009, date_2009 = get_2009_temp_for_today(df_2009)
+    current_weather = get_current_weather(location)
+
+    if temp_2009 is None or current_weather is None:
+        return "Error retrieving data.", "Check dataset or API"
+
+    comparison = f"📅 2009 Date: {date_2009} | 🌡️ Temp: {temp_2009}°C\n"
+    comparison += f"📍 Current Temp in {location}: {current_weather['temp']}°C\n"
+
+    diff = round(current_weather['temp'] - temp_2009, 2)
+    if diff > 0:
+        comparison += f"Today is {diff}°C warmer than the same day in 2009."
+    elif diff < 0:
+        comparison += f"Today is {abs(diff)}°C colder than the same day in 2009."
+    else:
+        comparison += "Today’s temperature is the same as in 2009!"
+
+    real_time_info = (
+        f"Location: {location}, Temperature: {current_weather['temp']}°C, "
+        f"Humidity: {current_weather['humidity']}%, Wind Speed: {current_weather['wind_speed']} m/s, "
+        f"Weather: {current_weather['description']}"
+    )
+
+    return comparison, real_time_info
+
+# Gradio UI (No plot output)
+gr.Interface(
+    fn=compare_weather,
+    inputs=[
+        gr.Textbox(label="Enter Your Weather Question"),
+        gr.Textbox(label="Enter City for Real-Time Weather")
+    ],
+    outputs=[
+        gr.Textbox(label="Comparison (2009 vs Today)"),
+        gr.Textbox(label="Real-Time Weather Data")
+    ],
+    title="Weather Comparison: 2009 vs Today",
+    description="Compare today’s temperature with the same day in 2009 (Jena Climate Dataset)."
+).launch(share=True)  # share=True for Colab use
+
