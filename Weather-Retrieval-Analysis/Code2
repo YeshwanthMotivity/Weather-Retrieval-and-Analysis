@@ -1,0 +1,422 @@
+Rag With Weather Analysis
+Run in colab
+
+# Install required libraries silently
+!pip install -q transformers faiss-cpu sentence-transformers requests gradio google-genai
+
+# Imports
+import requests
+import os
+import sys
+import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
+import gradio as gr
+from datetime import datetime, timedelta
+import re
+# Import Google GenAI SDK (Handles naming variability)
+try:
+    from google import genai
+except ImportError:
+    try:
+        import google.genai as genai
+    except ImportError:
+        print("Error: The google-genai package is required.")
+        sys.exit(1)
+
+# ====================================================================
+# 1. Configuration and Constants
+# ====================================================================
+WEATHER_API_KEY = "Your Weather Api Key"
+GEMINI_API_KEY = "Gemini Api Key"
+
+# OpenWeatherMap 6-day / 3-hour forecast endpoint
+WEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/forecast"
+EMBEDDING_MODEL_NAME = 'all-MiniLM-L6-v2'
+TOP_K_CONTEXT = 3 # Number of relevant documents to retrieve in semantic search
+FORECAST_DAYS = 6 # Used internally for API call setup
+
+
+# ====================================================================
+# 2. WeatherRAGAssistant Class (RAG Core)
+# ====================================================================
+
+class WeatherRAGAssistant:
+    """Core class handling data fetching, vector indexing (RAG), and LLM generation."""
+
+    def __init__(self, weather_key: str, gemini_key: str):
+        """Initializes Sentence Transformer (Embedding) and Gemini Client."""
+        try:
+            self.embed_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+            self.gemini_client = genai.Client(api_key=gemini_key)
+            self.weather_key = weather_key
+            self.index = None
+            self.texts = [] # Stores all formatted weather chunks
+            print(f"✅ RAG Assistant initialized with embedding model: {EMBEDDING_MODEL_NAME}")
+        except Exception as e:
+            print(f"❌ Failed to initialize RAG components: {e}")
+            raise
+
+    def fetch_and_index_weather(self, location: str, days: int = FORECAST_DAYS):
+        """Fetches OpenWeatherMap data, formats it into daily summaries, and builds the FAISS index."""
+        print(f"\n⚙️ Fetching weather for {location} ({days} days)...")
+        try:
+            params = {
+                "q": location,
+                "appid": self.weather_key,
+                "units": "metric" # Celsius
+            }
+            response = requests.get(WEATHER_BASE_URL, params=params, timeout=10)
+            print(f"[DEBUG] API Request URL: {response.url}")
+            response.raise_for_status() # Raises HTTPError for 4xx/5xx status codes
+            api_response = response.json()
+            self.texts = self._format_weather_data(api_response)
+            self._build_faiss_index(self.texts)
+            print(f"✅ Index built successfully for {location}. Documents indexed: {len(self.texts)}")
+            print(f"[DEBUG] Indexed Texts Sample: {self.texts[0]} ... {self.texts[-1]}")
+            return api_response, self.texts
+
+        except requests.exceptions.HTTPError as e:
+            status_code = e.response.status_code
+            if status_code == 404:
+                error_msg = "Location not found. Please check spelling or use City, Country format (e.g., Paris, FR)."
+            elif status_code == 401:
+                error_msg = "Invalid API Key. Please check your OpenWeatherMap key."
+            else:
+                error_msg = f"API Request Failed: HTTP {status_code}."
+
+            print(f"❌ API Request Failed for {location}: {error_msg}")
+            self.index = None
+            self.texts = []
+            return None, None
+        except Exception as e:
+            print(f"❌ Data processing or Indexing Failed: {e}")
+            self.index = None
+            self.texts = []
+            return None, None
+
+    def _format_weather_data(self, api_response: dict) -> list[str]:
+        """Converts raw 3-hour OWM forecast chunks into daily max/min summaries."""
+        daily_data = {}
+
+        # Iterate over the 3-hour forecasts to aggregate daily values
+        for three_hour_forecast in api_response.get('list', []):
+            timestamp = three_hour_forecast['dt']
+            date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+
+            # Extract main metrics
+            temp_max = three_hour_forecast['main']['temp_max']
+            temp_min = three_hour_forecast['main']['temp_min']
+            description = three_hour_forecast['weather'][0]['description']
+            rain = three_hour_forecast.get('rain', {}).get('3h', 0)
+
+            if date_str not in daily_data:
+                daily_data[date_str] = {
+                    'temp_max': temp_max, 'temp_min': temp_min,
+                    'description_list': set(), 'rain_total': 0.0
+                }
+
+            # Update min/max for the day
+            daily_data[date_str]['temp_max'] = max(daily_data[date_str]['temp_max'], temp_max)
+            daily_data[date_str]['temp_min'] = min(daily_data[date_str]['temp_min'], temp_min)
+            daily_data[date_str]['description_list'].add(description)
+            daily_data[date_str]['rain_total'] += rain
+
+        texts = []
+        for date, data in daily_data.items():
+            descriptions = ", ".join(sorted(list(data['description_list'])))
+            rain_total_rounded = round(data['rain_total'], 2)
+
+            texts.append(
+                f"Date: {date}, Max Temp: {round(data['temp_max'], 1)}°C, Min Temp: {round(data['temp_min'], 1)}°C, Total Rain: {rain_total_rounded}mm, Conditions: {descriptions}"
+            )
+
+        texts.sort() # Ensure chronological order
+        return texts
+
+    def _build_faiss_index(self, texts: list[str]):
+        """Converts text chunks into embeddings and initializes a FAISS vector index."""
+        if not texts:
+            self.index = None
+            raise ValueError("Cannot build index: Text list is empty.")
+
+        embeddings = self.embed_model.encode(texts, convert_to_numpy=True)
+        embeddings = np.ascontiguousarray(embeddings.astype('float32'))
+
+        d = embeddings.shape[1]
+        self.index = faiss.IndexFlatL2(d) # L2 (Euclidean) distance index
+        self.index.add(embeddings)
+
+    def search_index(self, query: str) -> list[str]:
+        """Searches the vector index for the top-K most relevant chunks to the query."""
+        if self.index is None or not self.texts:
+            print("⚠️ Index not built. Cannot search.")
+            return []
+
+        try:
+            query_vec = self.embed_model.encode([query], convert_to_numpy=True).astype('float32')
+            D, I = self.index.search(query_vec, TOP_K_CONTEXT)
+
+            context = [self.texts[i] for i in I[0] if 0 <= i < len(self.texts)]
+            print(f"✅ Retrieved {len(context)} context chunks.")
+            print(f"[DEBUG] Retrieved Context: {context}")
+            return context
+        except Exception as e:
+            print(f"❌ Error during index search: {e}")
+            return []
+
+    def generate_response(self, user_query: str, context: list[str]) -> str:
+        """Sends the question and retrieved context to the Gemini LLM for final answer generation."""
+        if not context:
+            return "I could not find relevant weather data to answer your question."
+
+        # Generic prompt structure used for non-date based queries
+        prompt = f"""
+        You are a helpful and concise weather assistant.
+        Use the following retrieved weather data (Context) to answer the user's Question clearly and concisely.
+
+        Context:
+        ---
+        {'\n'.join(context)}
+        ---
+
+        Question: {user_query}
+
+        Answer:
+        """
+
+        try:
+            response = self.gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt
+            )
+            return response.text.strip()
+        except Exception as e:
+            print(f"[DEBUG] LLM API Error: {e}")
+            return f"❌ Gemini API Error: Could not generate response. Details: {e}"
+
+
+# ====================================================================
+# 3. Gradio Interface Logic and State Management (RAG Pipeline)
+# ====================================================================
+
+# Initialize the RAG Assistant (Global State)
+assistant = WeatherRAGAssistant(WEATHER_API_KEY, GEMINI_API_KEY)
+
+initial_location_texts = []
+FORECAST_DAYS_DISPLAY = 5
+INITIAL_PROMPT = f"Enter city name and country code (e.g., Paris, FR) and click 'Refresh Data' to load the {FORECAST_DAYS_DISPLAY}-day forecast."
+
+def update_location_and_index(new_location: str):
+    """Refreshes weather data from the API and rebuilds the entire FAISS index."""
+    global initial_location_texts
+
+    clean_location = new_location.strip()
+
+    if "," not in clean_location:
+        initial_location_texts = []
+        return "⚠️ Please enter location in 'City, Country' format (e.g., Tokyo, JP)."
+
+    _, initial_location_texts = assistant.fetch_and_index_weather(location=clean_location)
+
+    if initial_location_texts:
+        return f"Weather data for {clean_location} ({len(initial_location_texts)} days) loaded and indexed. Ready to answer!"
+    else:
+        initial_location_texts = []
+        return f"❌ Failed to load weather data for {clean_location}. Check city spelling, country code, or API status/key."
+
+
+def get_target_date_string(user_query: str) -> str | None:
+    """Helper function to convert relative time (Today, Tomorrow, Friday) into YYYY-MM-DD format."""
+
+    query_lower = user_query.lower()
+    current_time = datetime.now()
+    target_date = None
+
+    day_mapping = {
+        'today': 0,
+        'tomorrow': 1,
+        'day after tomorrow': 2,
+    }
+
+    # 1. Check Day Names (e.g., 'friday')
+    current_weekday = current_time.weekday()
+    day_names = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+
+    for i in range(7):
+        target_day_index = (current_weekday + i) % 7
+        if day_names[target_day_index] in query_lower:
+            target_date = current_time + timedelta(days=i)
+            print(f"[DEBUG] Matched Day Name: {day_names[target_day_index]}, Target Date: {target_date.strftime('%Y-%m-%d')}")
+            break
+
+    # 2. Check Relative Terms (e.g., 'today', 'tomorrow') - Overrides Day Names
+    for term, days_delta in day_mapping.items():
+        if term in query_lower:
+            target_date = current_time + timedelta(days=days_delta)
+            print(f"[DEBUG] Matched Relative Term: {term}, Target Date: {target_date.strftime('%Y-%m-%d')}")
+            break
+
+    if target_date:
+        return target_date.strftime('%Y-%m-%d')
+
+    print(f"[DEBUG] No specific date term found in query. Defaulting to Semantic Search Path.")
+    return None
+
+
+def answer_weather_query(user_query: str):
+    """Main function that directs the query to either strict date filtering or semantic search."""
+    if not initial_location_texts:
+        return "Please load the weather data first by entering a city and clicking 'Refresh Data'."
+
+
+    target_date_str = get_target_date_string(user_query)
+
+    if target_date_str:
+        # --- PATH A: DATE-BASED QUERY (STRICT FILTERING + Recommendation) ---
+        print("[DEBUG] Path A: Executing STRICT DATE FILTERING.")
+
+        # 1. Strict Filtering: Find the EXACT string for the target date.
+        target_data = None
+        for text in initial_location_texts:
+            if target_date_str in text:
+                target_data = text
+                break
+
+        if target_data is None:
+            print(f"[DEBUG] Target Data NOT FOUND in index for date: {target_date_str}")
+            return f"The forecast data for {target_date_str} is not available in the loaded {len(initial_location_texts)}-day forecast range."
+
+        print(f"[DEBUG] Target Data FOUND: {target_data}")
+
+        # 2. Final LLM Prompt Construction (Forced Recommendation)
+        final_context = f"The verified weather data for {target_date_str} is: {target_data}"
+
+        prompt = f"""
+        You are a weather expert. Your task is to provide the requested information and a recommendation SOLELY based on the VERIFIED WEATHER DATA below.
+
+        ---
+        VERIFIED WEATHER DATA FOR {target_date_str}:
+        {final_context}
+        ---
+
+        QUESTION: What is the Max/Min temperature and what should the user bring (umbrella, etc.)?
+
+        ANSWER FORMAT:
+        1. State the Max and Min temperature.
+        2. Provide a recommendation. Recommend bringing an umbrella or raincoat if the 'Conditions' mention rain, drizzle, or shower OR if 'Total Rain' is greater than 0.0 mm. Otherwise, recommend based on temperature or general clouds.
+
+        Answer:
+        """
+        context_for_llm = [final_context]
+
+    else:
+        # --- PATH B: SEMANTIC QUERY (VECTOR SEARCH) ---
+        print("[DEBUG] Path B: Executing SEMANTIC VECTOR SEARCH.")
+
+        # 1. Retrieval: Use vector search for general or vague questions.
+        context_for_llm = assistant.search_index(user_query)
+
+        if not context_for_llm:
+            return "I found no relevant weather information for your general query."
+
+        # 2. General Prompt (Original prompt structure)
+        prompt = f"""
+        You are a helpful and concise weather assistant.
+        Use the following retrieved weather data (Context) to answer the user's Question clearly and concisely.
+
+        Context:
+        ---
+        {'\n'.join(context_for_llm)}
+        ---
+
+        Question: {user_query}
+
+        Answer:
+        """
+
+    print(f"[DEBUG] Final Context Sent to LLM (Count: {len(context_for_llm)}): {context_for_llm}")
+    # 3. Execution
+    try:
+        response = assistant.gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        print(f"[DEBUG] LLM Response Received. Length: {len(response.text)}")
+        return response.text.strip()
+    except Exception as e:
+        print(f"[DEBUG] LLM API Error: {e}")
+        return f"❌ Gemini API Error: Could not generate response. Details: {e}"
+
+
+# ====================================================================
+# 4. Gradio UI Layout
+# ====================================================================
+
+print("🚀 App initialized. Waiting for user to select location and refresh data...")
+
+with gr.Blocks(title="Enhanced OpenWeatherMap Assistant") as demo:
+    gr.Markdown(
+        f"""
+        # 🌤️ Enhanced RAG Weather Assistant (OpenWeatherMap)
+        Ask about the **{FORECAST_DAYS_DISPLAY}-day forecast** (Today + 4 Upcoming Days).
+        """
+    )
+
+    with gr.Row():
+        location_input = gr.Textbox(
+            label="1. Enter City and Country Code (e.g., London, UK)",
+            placeholder="e.g., Hyderabad, IN",
+            interactive=True,
+            scale=3
+        )
+        refresh_button = gr.Button("Refresh Data", scale=1)
+
+    status_output = gr.Textbox(
+        label="Data Status",
+        value=INITIAL_PROMPT,
+        interactive=False
+    )
+
+    gr.Markdown("## 💬 Ask a Question")
+
+    with gr.Row():
+        query_input = gr.Textbox(
+            label="Your Weather Question",
+            placeholder="e.g., What's the highest temperature tomorrow?",
+            lines=2,
+            scale=4
+        )
+        submit_button = gr.Button("Get Answer", scale=1)
+
+    answer_output = gr.Textbox(
+        label="Assistant's Answer",
+        lines=5,
+        interactive=False
+    )
+
+    gr.Markdown(f"*(Data provided by OpenWeatherMap, RAG powered by Sentence-Transformers and Gemini-2.5-flash)*")
+
+    location_input.submit(
+        fn=update_location_and_index,
+        inputs=[location_input],
+        outputs=[status_output]
+    )
+    refresh_button.click(
+        fn=update_location_and_index,
+        inputs=[location_input],
+        outputs=[status_output]
+    )
+
+    submit_button.click(
+        fn=answer_weather_query,
+        inputs=[query_input],
+        outputs=[answer_output]
+    )
+    query_input.submit(
+        fn=answer_weather_query,
+        inputs=[query_input],
+        outputs=[answer_output]
+    )
+
+ demo.launch()
