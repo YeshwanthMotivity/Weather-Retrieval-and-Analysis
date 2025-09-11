@@ -1,0 +1,173 @@
+Random_forest_Weather_and_Retrieval 
+Run This code in Colab
+
+# --- Installations ---
+# Installing all the libraries required
+print("DEBUG: Starting package installation...")
+#!pip install -q google-generativeai scikit-learn pandas gradio
+!pip install -q groq scikit-learn pandas gradio
+print("DEBUG: Installation complete.")
+# ----------------------------------------------------
+
+# --- Core Imports and Global Model Setup ---
+print("\nDEBUG: Starting core imports...")
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error
+import gradio as gr
+#import google.generativeai as genai
+from groq import Groq
+import numpy as np
+from datetime import datetime
+print("DEBUG: Imports complete.")
+
+# ----------------------------------------------------
+# --- Model Training Section ---
+print("\nDEBUG: Attempting to load and train model...")
+model = None # Initialize model globally
+try:
+    # 1. Data Loading and Preprocessing
+    df = pd.read_csv('data.csv')
+    print(f"DEBUG: 'data.csv' loaded successfully. Shape: {df.shape}")
+    df.columns = df.columns.str.replace(' ', '_')
+    df['ActualTemp'] = (df['Temp_Max'] + df['Temp_Min']) / 2
+    df['Date'] = pd.to_datetime(df['Date'], format='%d-%m-%Y')
+    df['day_of_year'] = df['Date'].dt.dayofyear
+    df['month'] = df['Date'].dt.month
+    df['year'] = df['Date'].dt.year
+    print("DEBUG: Feature engineering complete (ActualTemp, Date components).")
+
+    # 2. Feature and Target Setup
+    features = ['day_of_year', 'month', 'year']
+    target = 'ActualTemp'
+    X = df[features]
+    y = df[target]
+
+    # 3. Training and Evaluation
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    print(f"DEBUG: Data split into {len(X_train)} training and {len(X_test)} testing samples.")
+    model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+    model.fit(X_train, y_train)
+    predictions = model.predict(X_test)
+    mae = mean_absolute_error(y_test, predictions)
+    print(f"DEBUG: Model training complete.")
+    print(f"✅ Model trained successfully on your CSV!")
+    print(f"Model Mean Absolute Error: {mae:.2f}°C")
+
+except FileNotFoundError:
+    print("❌ Error: 'data.csv' not found. Please make sure you have uploaded the file.")
+    model = None
+except Exception as e:
+    print(f"❌ An unexpected error occurred during training: {e}")
+    model = None
+
+GROQ_API_KEY = "Groq Api Key"
+print("\nDEBUG: Configuring Groq API client.")
+try:
+    groq_client = Groq(api_key=GROQ_API_KEY)
+    print("DEBUG: Groq client initialized successfully.")
+except Exception as e:
+    print(f"❌ Error initializing Groq: {e}")
+
+
+# --- Core Prediction Function with Streaming ---
+
+def predict_weather_for_date(target_date_str):
+    """
+    Predicts temperature for a date string and streams LLM interpretation.
+    """
+    print("\nDEBUG: Function predict_weather_for_date started...")
+
+    # 1. Input Parsing and Error Handling
+    try:
+        target_date = datetime.strptime(target_date_str, '%Y-%m-%d')
+        print(f"DEBUG: Input string '{target_date_str}' successfully parsed to datetime object: {target_date.strftime('%Y-%m-%d')}")
+    except ValueError:
+        error_msg = f"Error: Date format is invalid. Please use YYYY-MM-DD (e.g., 2025-06-15)."
+        print(f"❌ DEBUG: {error_msg}")
+        yield error_msg, "Invalid date format provided."
+        return
+
+    if model is None:
+        error_msg = "Model not trained. Please upload 'data.csv' and run the code."
+        print(f"❌ DEBUG: {error_msg}")
+        yield error_msg, "Cannot provide advice. The prediction model failed to load."
+        return
+
+    # 2. Feature Extraction
+    day_of_year = target_date.timetuple().tm_yday
+    month = target_date.month
+    year = target_date.year
+    input_data = np.array([[day_of_year, month, year]])
+    print(f"DEBUG: Extracted features (DoY, Month, Year): {input_data}")
+
+    # 3. Model Prediction
+    predicted_temp = model.predict(input_data)[0]
+    print(f"DEBUG: Prediction successful: {predicted_temp:.2f}°C")
+    prediction_text = f"Predicted Average Temperature for {target_date.strftime('%Y-%m-%d')}: {predicted_temp:.2f}°C"
+
+    # Yield the numerical prediction immediately
+    yield prediction_text, "Thinking..."
+
+    # 4. Groq Interpretation with Streaming
+    print("DEBUG: Generating Groq interpretation with streaming...")
+
+    # 💡 ENHANCED PROMPT TEMPLATE
+    # We now provide more context and ask for a structured response
+    prompt = f"""
+    You are a professional weather and travel advisor for Hyderabad, India.
+    Your task is to provide a concise and helpful weather summary based on the following information.
+
+    Predicted Average Temperature: {predicted_temp:.2f}°C
+    Date: {target_date.strftime('%Y-%m-%d')}
+    Location: Hyderabad, India
+
+    Please provide your response in a clear and organized format, including the following sections:
+
+    **What to Wear:** Provide one to two specific clothing recommendations.
+    **Outdoor Activities:** Suggest one to two outdoor activities suitable for the weather.
+    **General Tip:** Provide a final, brief piece of advice (e.g., related to sun safety or hydration).
+
+    Keep the tone friendly and professional.
+    """
+
+    full_interpretation = ""
+    try:
+        stream = groq_client.chat.completions.create(
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            model="llama-3.1-8b-instant",
+            stream=True
+        )
+
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                full_interpretation += chunk.choices[0].delta.content
+                yield prediction_text, full_interpretation
+    except Exception as e:
+        yield prediction_text, f"Could not get friendly advice from Groq (API Error). Error: {e}"
+        print(f"❌ DEBUG: Groq API call failed: {e}")
+
+    print("DEBUG: Function finished.")
+
+
+
+# ----------------------------------------------------
+# --- Gradio Interface Launch ---
+print("\nDEBUG: Preparing Gradio interface...")
+iface = gr.Interface(
+    fn=predict_weather_for_date,
+    inputs=[gr.Textbox(label="Select a Date to Predict", placeholder="Enter date as YYYY-MM-DD (e.g., 2025-06-15)")],
+    outputs=[
+        gr.Textbox(label="Numerical Prediction"),
+        gr.Textbox(label="Friendly Advice from Groq")
+    ],
+    title="📅 Date-Based Weather Forecaster (Random Forest with Groq)",
+    description="Pick a date to forecast the temperature. Requires 'data.csv' for training."
+)
+
+print("DEBUG: Launching Gradio interface...")
+iface.queue().launch(share=True)
+print("DEBUG: Gradio launch call initiated.")
