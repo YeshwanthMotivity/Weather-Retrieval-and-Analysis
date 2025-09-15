@@ -9,9 +9,7 @@ Weather-RAG is a machine learning project that uses Retrieval-Augmented Generati
 - **🔍 Natural Language Querying:** –  Ask questions like, "What was the temperature on July 1st, 2013?" 
 - **⚡ No API Key for RAG:** – The core semantic search system works locally without any external API key. 
 - **📊 Real-Time Comparison:** – Compare today's live weather with the historical data from the same day in 2009.  
-- **🌐 Gradio Web Interface:** – Provide natural, human-like speech responses via **ElevenLabs** or Deepgram TTS  
-- **🧩 Efficient Retrieval:** – Easily adaptable to different languages  
-- **🔄 Adaptable:** – Suitable for high-volume call centers and multi-channel support
+- **🌐 Gradio Web Interface:** – Enhanced User Interface
 
 ---
 
