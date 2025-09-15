@@ -1,55 +1,50 @@
 🌦️ Weather-RAG: Weather Retrieval & Real-Time Comparison
 Weather-RAG is a machine learning project that uses Retrieval-Augmented Generation (RAG) to perform semantic search on historical weather data. It combines sentence-transformer embeddings with FAISS indexing for natural language queries and features a real-time weather comparison tool using the OpenWeatherMap API.
 
-📌 Features
-🔍 Natural Language Querying - Ask questions like, "What was the temperature on July 1st, 2013?"
+📌 Key Features
+🔍 Natural Language Querying: Ask questions like, "What was the temperature on July 1st, 2013?"
 
-⚡ No API Key for RAG - The core semantic search system works locally without any external API key.
+⚡ No API Key for RAG: The core semantic search system works locally without any external API key.
 
-📊 Real-Time Comparison - Compare today's weather (live data) with the same day in 2009.
+📊 Real-Time Comparison: Compare today's live weather with the historical data from the same day in 2009.
 
-🌐 Gradio Web Interface - A clean, interactive UI makes it easy to enter queries and get results.
+🌐 Gradio Web Interface: A clean, interactive UI makes it easy to enter queries and get results without writing any code.
 
-🧩 Efficient Retrieval - Quick semantic search using sentence-transformer embeddings and FAISS indexing.
+🧩 Efficient Retrieval: Uses sentence-transformer embeddings and FAISS for fast and accurate semantic search.
 
-🔄 Adaptable - The system can be easily adapted to any tabular dataset (e.g., finance, sales, health).
+🔄 Adaptable: The system can be easily modified to work with any tabular dataset (e.g., finance, sales, health).
 
 🛠️ Tech Stack
 Component	Tool / Library	Purpose
 Embedding	SentenceTransformers	Encodes text into vectors for semantic search.
-Vector Database	FAISS	Efficient vector indexing for fast retrieval.
-Data Handling	Pandas	Manipulation and filtering of the dataset.
+Vector Database	FAISS	Provides efficient vector indexing for fast retrieval.
+Data Handling	Pandas	Used for manipulating and filtering the dataset.
 User Interface	Gradio	Creates an interactive web UI.
-API Integration	Requests	Fetches real-time data from OpenWeatherMap.
+API Integration	Requests	Fetches real-time data from the OpenWeatherMap API.
 
 Export to Sheets
-🧠 Models Used
-Sentence Transformer (all-MiniLM-L6-v2): Encodes user queries and dataset passages into vectors for semantic search, enabling relevant data retrieval from the historical dataset.
-
-Google Flan-T5 Base (google/flan-t5-base): Generates human-readable answers based on the retrieved data. This model is lightweight and efficient for natural language generation.
-
 📄 How It Works
 1. Semantic Search (RAG) Workflow
-Loads the historical weather dataset (2009–2016).
+The system loads a historical weather dataset (2009–2016).
 
-Converts each row into readable text and generates embeddings using all-MiniLM-L6-v2.
+Each row is converted into a readable text passage and embedded into a vector using a sentence-transformer model.
 
-Indexes the embeddings with FAISS.
+These vectors are then indexed with FAISS for fast similarity search.
 
-When a user inputs a query, the system performs a semantic search to find the top matching rows from the dataset.
+When a user inputs a query, the system finds the most semantically similar passages from the dataset.
 
 2. Real-Time Weather Comparison
-Uses the OpenWeatherMap API to fetch current weather data.
+The application uses the OpenWeatherMap API to fetch the current weather for a specified city.
 
-Filters the historical dataset to get weather on the same date in 2009.
+It filters the historical dataset to find the weather from the same date in 2009.
 
-Displays a side-by-side comparison of temperature, humidity, and wind speed using the Gradio UI.
+The two sets of data are displayed side-by-side in the Gradio UI for easy comparison.
 
 ✨ Interactive Modules
-Weather-RAG provides two interfaces for exploring and comparing weather data.
+Weather-RAG offers two interfaces for exploring and comparing weather data.
 
 🌤️ Section 1: Ask the Past
-This module uses RAG to answer natural language queries about the Jena Climate Dataset from 2009.
+This module uses RAG to answer natural language questions about the Jena Climate Dataset from 2009.
 
 Example Queries:
 
@@ -60,7 +55,7 @@ Example Queries:
 "Was it sunny in Jena on June 5th, 2009?"
 
 🌡️ Section 2: Past vs Present
-This module compares real-time weather with the historical data.
+This module compares real-time weather with the historical data from the same date in 2009.
 
 Example Queries:
 
@@ -74,7 +69,7 @@ Example Queries:
 Prerequisites
 Python 3+
 
-An OpenWeatherMap API key for real-time comparisons.
+An OpenWeatherMap API key for real-time weather comparisons.
 
 Installation Steps
 Clone the repository:
@@ -98,7 +93,7 @@ Summarization: Integrate LLM-based summarization for richer query responses.
 
 Expand Dataset: Support multiple years or other cities.
 
-Production Deployment: Deploy the application with frameworks like Flask or FastAPI for real-time APIs.
+Production Deployment: Deploy the application with frameworks like Flask or FastAPI to create real-time APIs.
 
 📬 Contact
 For any questions or collaboration, feel free to reach out:
