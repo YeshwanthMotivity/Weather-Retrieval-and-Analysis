@@ -42,7 +42,7 @@ Weather-RAG is a machine learning project that uses Retrieval-Augmented Generati
 
 ---
  
-**Architecture Diagram Placeholder**  
+**Architecture Diagram**  
 ![Building LLM application using RAG - by Sagar Gandhi](https://github.com/user-attachments/assets/ed66e623-e3d4-4d7f-8d90-971f29771dfe)
 
 ---
