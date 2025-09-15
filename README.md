@@ -41,7 +41,7 @@ Weather-RAG is a machine learning project that uses Retrieval-Augmented Generati
 3. The two sets of data are displayed side-by-side in the Gradio UI for easy comparison.
  
 **Architecture Diagram Placeholder**  
-
+![Building LLM application using RAG - by Sagar Gandhi](https://github.com/user-attachments/assets/ed66e623-e3d4-4d7f-8d90-971f29771dfe)
 ---
 
 ## Interactive Modules
