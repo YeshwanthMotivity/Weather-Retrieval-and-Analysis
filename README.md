@@ -92,8 +92,6 @@ Open Preedict__Weather_using_RAG.ipynb in Google Colab or Jupyter Notebook and f
 4. **Production Deployment**: Deploy the application with frameworks like Flask or FastAPI to create real-time APIs.
 ---
 
-   
----
 
 ## 📬  About the Team
 • Mentor / Manager: Mr. Venkata Ramana Sudhakar Polavarapu
