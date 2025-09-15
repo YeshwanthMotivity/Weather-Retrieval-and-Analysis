@@ -90,7 +90,6 @@ Open Preedict__Weather_using_RAG.ipynb in Google Colab or Jupyter Notebook and f
 2. Summarization: Integrate LLM-based summarization for richer query responses.
 3. Expand Dataset: Support multiple years or other cities.
 4. Production Deployment: Deploy the application with frameworks like Flask or FastAPI to create real-time APIs.
-5. 
 ---
 
 ## 📬 Contact
