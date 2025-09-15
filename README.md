@@ -92,6 +92,7 @@ Open Preedict__Weather_using_RAG.ipynb in Google Colab or Jupyter Notebook and f
 
 ## 📬 Contact
 For any questions or collaboration, feel free to reach out:
+
 Email: yeshwanth.mudimala@motivitylabs.com
 
 ---
