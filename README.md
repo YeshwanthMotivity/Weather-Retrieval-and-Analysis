@@ -1,42 +1,52 @@
-# 🌦️ Weather-RAG: Weather Retrieval & Real-Time Comparison
+# Weather Retrieval and Analysis
 
-Weather-RAG is a machine learning project that uses Retrieval-Augmented Generation (RAG) to perform semantic search on historical weather data. It combines sentence-transformer embeddings with FAISS indexing for natural language queries and features a real-time weather comparison tool using the OpenWeatherMap API.
+A comprehensive toolkit for weather analysis, prediction, and retrieval-augmented generation (RAG) using Machine Learning and Large Language Models.
 
----
+This repository contains notebooks that demonstrate how to:
+1.  **Retrieve & Analyze Weather Data**: Using OpenWeatherMap API and historical datasets.
+2.  **Predict Future Weather**: Using Random Forest Regression on historical climate data.
+3.  **RAG Weather Assistant**: A conversational assistant that uses semantic search (FAISS) and LLMs (Gemini, Groq/Llama) to answer weather-related questions based on retrieved data.
 
-## 📌 Features
+## Project Structure
 
-- **🔍 Natural Language Querying:** –  Ask questions like, "What was the temperature on July 1st, 2013?" 
-- **⚡ No API Key for RAG:** – The core semantic search system works locally without any external API key. 
-- **📊 Real-Time Comparison:** – Compare today's live weather with the historical data from the same day in 2009.  
-- **🌐 Gradio Web Interface:** – Enhanced User Interface
+```
+Weather-Retrieval-and-Analysis/
+├── DataSet/
+│   ├── jena_climate_2009_2016.csv       # Historical weather dataset
+│   ├── OpenWeatherMap_API_Parameters.pdf # API documentation ref
+│   └── country_codes.pdf                # Country codes ref
+├── Weather_Prediction_Rag.ipynb         # RAG Assistant (OpenWeatherMap + Gemini)
+├── Random_forest_Weather_and_Retrieval.ipynb # RF Prediction + Groq Analysis
+├── Weather-Retrieval-and-Analysis.ipynb # Data Analysis & Local RAG experiments
+├── requirements.txt                     # Python dependencies
+└── README.md                            # Project documentation
+```
 
----
+## Notebook Overview & Comparison
 
-## 🛠️ Technologies Used
+This project includes three distinct notebooks, each serving a specific purpose in the weather analysis workflow:
 
-|      Component       |      Tool / Library    |                        Purpose                         |
-| ---------------------| -----------------------| -------------------------------------------------------|
-| **Embedding**        | `SentenceTransformers` | Encodes text into vectors for semantic search.         |
-| **Vector Database**  | `FAISS`                | Provides efficient vector indexing for fast retrieval. |
-| **Data Handling**    | `Pandas`               | Used for manipulating and filtering the dataset.       | 
-| **User Interface**   | `Gradio`               | Creates an interactive web UI.                         |
-| **API Integration**  | `Requests`             | Fetches real-time data from the OpenWeatherMap API.    |
+| Notebook File | Primary Purpose | Key Technologies | Data Source |
+| :--- | :--- | :--- | :--- |
+| **`Weather_Prediction_Rag.ipynb`** | **Live RAG Assistant** <br> A user-facing app that answers questions about *current* and *forecasted* weather. | • OpenWeatherMap API <br> • Gemini-2.5 Flash <br> • FAISS & Sentence-Transformers <br> • Gradio (Enhanced UI) | Live API Data |
+| **`Random_forest_Weather_and_Retrieval.ipynb`** | **ML Prediction & Advisory** <br> Predicts temperature for a specific future date using historical patterns and gives specific advice. | • Random Forest Regressor <br> • Groq (Llama 3.1) <br> • Gradio | `jena_climate_2009_2016.csv` (Historical) |
+| **`Weather-Retrieval-and-Analysis.ipynb`** | **Core Analysis & Experimentation** <br> The foundational notebook for exploring data, generating embeddings, and testing local LLMs. | • Pandas Data Analysis <br> • FAISS (Deep Dive) <br> • Local LLM (`google/flan-t5-base`) | `jena_climate_2009_2016.csv` (Historical) |
 
----
+### Detailed Breakdown
 
+#### 1. `Weather_Prediction_Rag.ipynb` (The Assistant)
+This is the main **conversational interface**. It does not train a model on historical CSV data. Instead, it hits the **OpenWeatherMap API** to get real-time 5-day forecasts, indexes that data on-the-fly using FAISS, and uses **Google Gemini** to answer natural language questions (e.g., "Will it rain on Friday?").
 
-## 📄 How It Works
-## Semantic Search (RAG) Workflow
-1. The system loads a historical weather dataset (2009–2016).
-2. Each row is converted into a readable text passage and embedded into a vector using a sentence-transformer model.
-3. These vectors are then indexed with FAISS for fast similarity search.
-4. When a user inputs a query, the system finds the most semantically similar passages from the dataset.
+#### 2. `Random_forest_Weather_and_Retrieval.ipynb` (The Forecaster)
+This notebook focuses on **predictive modeling**. It trains a **Random Forest** model on the historical Jena Climate dataset to predict the temperature for any given date (past or future) based on day/month/year features. It then uses **Groq** to interpret that numerical prediction into friendly advice.
 
-## Real-Time Weather Comparison
-1. The application uses the OpenWeatherMap API to fetch the current weather for a specified city.
-2. It filters the historical dataset to find the weather from the same date in 2009.
-3. The two sets of data are displayed side-by-side in the Gradio UI for easy comparison.
+#### 3. `Weather-Retrieval-and-Analysis.ipynb` (The Lab)
+This is the **experimental backend**. It demonstrates the underlying mechanics of:
+*   Loading and preprocessing the massive Jena Climate dataset.
+*   Generating vector embeddings for thousands of row entries.
+*   Setting up a FAISS index manually.
+*   Using a locally downloaded LLM (`flan-t5-base`) for retrieval-augmented generation without external API calls.
+
 
 ---
  
@@ -45,63 +55,47 @@ Weather-RAG is a machine learning project that uses Retrieval-Augmented Generati
 
 ---
 
-## Interactive Modules
-Weather-RAG offers two interfaces for exploring and comparing weather data.
+## Setup & Installation
 
-## 🌤️ Section 1: Ask the Past
-This module uses RAG to answer natural language questions about the Jena Climate Dataset from 2009.
-Example Queries:
-1. "What was the average temperature in July 2009?"
-2. "How much did it rain on March 15th, 2009?"
-3. "Was it sunny in Jena on June 5th, 2009?"
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/Yeshwanth2124/Weather-Retrieval-and-Analysis.git
+    cd Weather-Retrieval-and-Analysis
+    ```
 
-## 🌡️ Section 2: Past vs Present
-This module compares real-time weather with the historical data from the same date in 2009.
-Example Queries:
-1. "Compare today's temperature with 2009."
-2. "Is it warmer today in [City] than on this day in 2009?"
-3. "How does today’s humidity compare with 2009 in Jena?"
+2.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
----
+3.  **Environment Variables**:
+    These notebooks use various APIs. It is recommended to set them as environment variables or input them when prompted. **Do not hardcode keys in the notebooks.**
 
-## 📦 Setup Instructions
+    *   `WEATHER_API_KEY`: OpenWeatherMap API Key
+    *   `GEMINI_API_KEY`: Google Gemini API Key
+    *   `GROQ_API_KEY`: Groq API Key
 
-### **Prerequisites**
-- Python 3.9+  
-- An OpenWeatherMap API key for real-time weather comparisons. 
- 
-### **Installation Steps**
-```bash
-# 1. Clone this repository
-git clone https://github.com/YeshwanthMotivity/Weather-RAG.git
-cd Weather-RAG
+## Usage
 
-# 2. Install dependencies
-pip install faiss-cpu gradio transformers sentence-transformers pandas tqdm numpy requests
+You can run the notebooks using Jupyter Lab, Jupyter Notebook, or VS Code.
 
-# 3. Launch the notebook:
-Open Preedict__Weather_using_RAG.ipynb in Google Colab or Jupyter Notebook and follow the step-by-step instructions.
-```
----
-###  Future Scope
-1. **Data Visualization**: Add visual plots to compare temperature and other metrics over time.
-2. **Summarization**: Integrate LLM-based summarization for richer query responses.
-3. **Expand Dataset**: Support multiple years or other cities.
-4. **Production Deployment**: Deploy the application with frameworks like Flask or FastAPI to create real-time APIs.
----
+*   **For the Live Weather Assistant**: Run `Weather_Prediction_Rag.ipynb`.
+*   **For ML Prediction**: Run `Random_forest_Weather_and_Retrieval.ipynb`.
+
+## License
+
+This project is open-source.
 
 
-## 📬  About the Team
-• Mentor / Manager: Mr. Venkata Ramana Sudhakar Polavarapu
+## 🤝 Contributions
+Contributions are welcome!
+1. Fork the repository.
+2. Create a feature branch.
+3. Commit your changes.
+4. Submit a pull request.
 
-• Team Members: Yeshwanth Goud Mudimala, Sai Dinesh Bejjanki, Uma Venkata Karthik Vallabhaneni, Pushpaja Udayagiri, Sai Seetu Reddy Bommareddy
+## Author
 
+**Yeshwanth Goud**
 
----
-
-## 📬 Contact
-For any questions or collaboration, feel free to reach out:
-
-Email: yeshwanth.mudimala@motivitylabs.com
-
----
+*Data Scientist | Full Stack & ML Enthusiast*
