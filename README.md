@@ -82,20 +82,20 @@ You can run the notebooks using Jupyter Lab, Jupyter Notebook, or VS Code.
 *   **For the Live Weather Assistant**: Run `Weather_Prediction_Rag.ipynb`.
 *   **For ML Prediction**: Run `Random_forest_Weather_and_Retrieval.ipynb`.
 
-## License
+---
 
-This project is open-source.
+## 📬  About the Team
+• Mentor / Manager: Mr. Venkata Ramana Sudhakar Polavarapu
 
+• Team Members: Yeshwanth Goud Mudimala
+                Sai Dinesh Bejjanki 
+                Uma Venkata Karthik Vallabhaneni
+                Pushpaja Udayagiri
+                Sai Seetu Reddy Bommareddy
 
-## 🤝 Contributions
-Contributions are welcome!
-1. Fork the repository.
-2. Create a feature branch.
-3. Commit your changes.
-4. Submit a pull request.
+---
 
-## Author
+### 📬 Contact
+For any questions, feel free to reach out at:
 
-**Yeshwanth Goud**
-
-*Data Scientist | Full Stack & ML Enthusiast*
+**Email 📧:** yeshwanth.mudimala@motivitylabs.com
