@@ -82,17 +82,18 @@ You can run the notebooks using Jupyter Lab, Jupyter Notebook, or VS Code.
 *   **For the Live Weather Assistant**: Run `Weather_Prediction_Rag.ipynb`.
 *   **For ML Prediction**: Run `Random_forest_Weather_and_Retrieval.ipynb`.
 
----
+---                
+## Team
 
-## 📬  About the Team
-• Mentor / Manager: Mr. Venkata Ramana Sudhakar Polavarapu
+**Mentor / Manager:**
+- **Mr. Venkata Ramana Sudhakar Polavarapu**
 
-• Team Members: Yeshwanth Goud Mudimala
-                Sai Dinesh Bejjanki 
-                Uma Venkata Karthik Vallabhaneni
-                Pushpaja Udayagiri
-                Sai Seetu Reddy Bommareddy
-
+**Team Members:**
+- Yeshwanth Goud Mudimala
+- Sai Dinesh Bejjanki 
+- Uma Venkata Karthik Vallabhaneni
+- Pushpaja Udayagiri
+- Sai Seetu Reddy Bommareddy
 ---
 
 ### 📬 Contact
